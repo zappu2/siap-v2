@@ -31,7 +31,25 @@ class PelatihanWebinarResource extends Resource
     {
         return $form
             ->schema([
-                //
+                Forms\Components\TextInput::make('nama')
+                    ->label('Nama Pelatihan')
+                    ->required()
+                    ->maxLength(255)
+                    ->columnSpanFull(),
+                
+                Forms\Components\FileUpload::make('sertifikat_url')
+                    ->label('Sertifikat TTE')
+                    ->acceptedFileTypes(['application/pdf'])
+                    ->maxSize(10240)
+                    ->disk('public')
+                    ->directory('sertifikat-webinar')
+                    ->visibility('public')
+                    ->downloadable()
+                    ->openable()
+                    ->previewable()
+                    ->columnSpanFull()
+                    ->helperText('Upload file PDF sertifikat (maksimal 10MB)')
+                    ->storeFileNamesIn('sertifikat_filename'),
             ]);
     }
 
@@ -65,12 +83,19 @@ class PelatihanWebinarResource extends Resource
                     ->label('Sertifikat')
                     ->alignCenter()
                     ->formatStateUsing(function (PelatihanWebinar $record): \Illuminate\Contracts\Support\Htmlable {
+                        if (!$record->sertifikat_url) {
+                            return new \Illuminate\Support\HtmlString('<span class="text-gray-400">Tidak ada sertifikat</span>');
+                        }
+                        
+                        $downloadUrl = route('webinar.download-sertifikat', $record->id);
+                        $viewUrl = \Storage::disk('public')->url($record->sertifikat_url);
+                        
                         return new \Illuminate\Support\HtmlString('
                             <div class="flex gap-2 justify-center">
-                                <a href="#" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-medium inline-block">
+                                <a href="' . $downloadUrl . '" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-sm font-medium inline-block" download>
                                     Download
                                 </a>
-                                <a href="#" class="bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1 rounded text-sm font-medium inline-flex items-center gap-1">
+                                <a href="' . $viewUrl . '" target="_blank" class="bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1 rounded text-sm font-medium inline-flex items-center gap-1">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>

@@ -40,12 +40,18 @@ class UserSeeder extends Seeder
             );
         }
         
-        // Update existing admin user with additional fields
-        \App\Models\User::where('email', 'admin@example.com')->update([
-            'name' => 'Admin User',
-            'nip' => '199001012020121001',
-            'unit_kerja' => 'Unit TI',
-            'jabatan' => 'Administrator Sistem',
-        ]);
+        // Create or update admin user
+        \App\Models\User::updateOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Administrator Sistem',
+                'email' => 'admin@example.com',
+                'nip' => '198001012000011001',
+                'unit_kerja' => 'BPSDM',
+                'jabatan' => 'Administrator Sistem',
+                'password' => bcrypt('admin123'),
+                'email_verified_at' => now(),
+            ]
+        );
     }
 }

@@ -117,23 +117,12 @@ class PelatihanJarakJauhResource extends Resource
                     ->default(1)
                     ->inline(),
                     
-                // Peserta Pelatihan Section
+                // Peserta Pelatihan Section (Empty table view)
                 Forms\Components\Section::make('Peserta Pelatihan')
                     ->schema([
-                        Forms\Components\Placeholder::make('peserta_info')
-                            ->label('')
-                            ->content('Tidak ada data yang ditemukan')
-                            ->extraAttributes([
-                                'class' => 'text-center py-8 text-gray-500'
-                            ]),
-                            
-                        Forms\Components\Actions::make([
-                            Forms\Components\Actions\Action::make('lampirkan')
-                                ->label('Lampirkan')
-                                ->color('gray')
-                                ->button(),
-                        ])
-                        ->alignRight(),
+                        Forms\Components\ViewField::make('peserta_table')
+                            ->view('filament.forms.components.empty-peserta-table')
+                            ->columnSpanFull(),
                     ])
                     ->columnSpanFull(),
             ])

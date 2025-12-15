@@ -9,6 +9,8 @@ class PelatihanJarakJauh extends Model
 {
     use HasFactory;
     
+    protected $table = 'pelatihan_jarak_jauhs';
+    
     protected $fillable = [
         'nama_pelatihan',
         'penyelenggara',

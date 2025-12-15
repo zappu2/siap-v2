@@ -15,15 +15,17 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between">
                         <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {{ $record->sertifikat_filename ?? 'syafii-sign-cert-1724036455.pdf' }}
+                            {{ $record->sertifikat_filename ?? 'Tidak ada file' }}
                         </p>
+                        @if($record->sertifikat_url)
                         <button type="button" class="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
                         </button>
+                        @endif
                     </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ $record->sertifikat_size ?? '418 KB' }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ $record->formatted_size }}</p>
                 </div>
             </div>
         </div>
