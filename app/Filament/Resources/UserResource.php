@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Http;
 
 class UserResource extends Resource
 {
@@ -176,22 +177,51 @@ class UserResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('provinsi')
                                     ->label('Provinsi (tempat tinggal)')
-                                    ->options([
-                                        'BANTEN' => 'BANTEN',
-                                        'DKI JAKARTA' => 'DKI JAKARTA',
-                                        'JAWA BARAT' => 'JAWA BARAT',
-                                        'JAWA TENGAH' => 'JAWA TENGAH',
-                                        'JAWA TIMUR' => 'JAWA TIMUR',
-                                    ])
-                                    ->searchable(),
+                                    ->options(function () {
+                                        try {
+                                            $response = Http::get('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json');
+                                            if ($response->successful()) {
+                                                $provinces = $response->json();
+                                                return collect($provinces)->pluck('name', 'id')->toArray();
+                                            }
+                                        } catch (\Exception $e) {
+                                            // Fallback to static options if API fails
+                                            return [
+                                                '36' => 'BANTEN',
+                                                '31' => 'DKI JAKARTA',
+                                                '32' => 'JAWA BARAT',
+                                                '33' => 'JAWA TENGAH',
+                                                '35' => 'JAWA TIMUR',
+                                            ];
+                                        }
+                                        return [];
+                                    })
+                                    ->searchable()
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (callable $set) => $set('kab_kota', null)),
                                 Forms\Components\Select::make('kab_kota')
                                     ->label('Kab/Kota (tempat tinggal)')
-                                    ->options([
-                                        'KOTA TANGERANG SELATAN' => 'KOTA TANGERANG SELATAN',
-                                        'KOTA TANGERANG' => 'KOTA TANGERANG',
-                                        'KABUPATEN TANGERANG' => 'KABUPATEN TANGERANG',
-                                    ])
-                                    ->searchable(),
+                                    ->options(function (callable $get) {
+                                        $provinceId = $get('provinsi');
+                                        if (!$provinceId) {
+                                            return [];
+                                        }
+                                        
+                                        try {
+                                            $response = Http::get("https://www.emsifa.com/api-wilayah-indonesia/api/regencies/{$provinceId}.json");
+                                            if ($response->successful()) {
+                                                $regencies = $response->json();
+                                                return collect($regencies)->pluck('name', 'id')->toArray();
+                                            }
+                                        } catch (\Exception $e) {
+                                            // Return empty if API fails
+                                            return [];
+                                        }
+                                        return [];
+                                    })
+                                    ->searchable()
+                                    ->disabled(fn (callable $get) => !$get('provinsi'))
+                                    ->placeholder('Pilih provinsi terlebih dahulu'),
                             ]),
                         Forms\Components\Grid::make(2)
                             ->schema([
