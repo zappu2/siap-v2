@@ -41,4 +41,10 @@ return [
         'enabled' => env('WHATSAPP_ENABLED', true),
     ],
 
+    'pjj_moodle' => [
+        'base_url' => env('PJJ_MOODLE_BASE_URL', 'https://pjj.kemenag.go.id/webservice/rest/server.php'),
+        'ws_token' => env('PJJ_MOODLE_WS_TOKEN', 'e12b06bf9973df4d0f1bdcf4c31c53d2'),
+        'cache_duration' => env('PJJ_MOODLE_CACHE_DURATION', 3600),
+    ],
+
 ];
