@@ -137,6 +137,17 @@ class PelatihanJarakJauhApiService
     {
         return Cache::forget('pjj_moodle_courses');
     }
+
+    /**
+     * Clear the enrolled users cache for a specific course
+     *
+     * @param int $courseId
+     * @return bool
+     */
+    public function clearEnrolledUsersCache(int $courseId): bool
+    {
+        return Cache::forget("pjj_moodle_enrolled_users_{$courseId}");
+    }
     
     /**
      * Refresh courses cache
@@ -147,6 +158,156 @@ class PelatihanJarakJauhApiService
     {
         $this->clearCache();
         return $this->getCourses(false);
+    }
+
+    /**
+     * Get enrolled users for a specific course
+     *
+     * @param int $courseId
+     * @param bool $useCache Whether to use cached data
+     * @return Collection
+     */
+    public function getEnrolledUsers(int $courseId, bool $useCache = true): Collection
+    {
+        $cacheKey = "pjj_moodle_enrolled_users_{$courseId}";
+        
+        if ($useCache && Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+        
+        try {
+            $response = Http::timeout(60)->get($this->baseUrl, [
+                'wstoken' => $this->wsToken,
+                'wsfunction' => 'core_enrol_get_enrolled_users',
+                'moodlewsrestformat' => 'json',
+                'courseid' => $courseId,
+            ]);
+            
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Check if it's an error response
+                if (isset($data['exception']) || isset($data['errorcode'])) {
+                    Log::warning('PJJ Moodle API returned error for enrolled users', [
+                        'courseId' => $courseId,
+                        'response' => $data,
+                    ]);
+                    return collect([]);
+                }
+                
+                if (is_array($data)) {
+                    $users = collect($data)->map(function ($user) {
+                        return $this->transformEnrolledUser($user);
+                    });
+                    
+                    if ($useCache) {
+                        Cache::put($cacheKey, $users, $this->cacheDuration);
+                    }
+                    
+                    return $users;
+                }
+                
+                Log::warning('PJJ Moodle API returned unexpected format for enrolled users', ['response' => $data]);
+                return collect([]);
+            }
+            
+            Log::error('PJJ Moodle API request failed for enrolled users', [
+                'courseId' => $courseId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            
+            return collect([]);
+            
+        } catch (\Exception $e) {
+            Log::error('PJJ Moodle API exception for enrolled users', [
+                'courseId' => $courseId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return collect([]);
+        }
+    }
+
+    /**
+     * Refresh enrolled users cache for a course
+     *
+     * @param int $courseId
+     * @return Collection
+     */
+    public function refreshEnrolledUsers(int $courseId): Collection
+    {
+        $this->clearEnrolledUsersCache($courseId);
+        return $this->getEnrolledUsers($courseId, false);
+    }
+
+    /**
+     * Transform API enrolled user data to standardized format
+     *
+     * @param array $user
+     * @return array
+     */
+    protected function transformEnrolledUser(array $user): array
+    {
+        // Extract custom fields into a more accessible format
+        $customFields = [];
+        foreach ($user['customfields'] ?? [] as $field) {
+            $customFields[$field['shortname']] = $field['value'];
+        }
+
+        // Get roles
+        $roles = collect($user['roles'] ?? [])->pluck('shortname')->toArray();
+        $roleNames = collect($user['roles'] ?? [])->map(function ($role) {
+            return match($role['shortname']) {
+                'editingteacher' => 'Pengajar',
+                'teacher' => 'Pengajar Non-Edit',
+                'student' => 'Peserta',
+                'manager' => 'Manager',
+                default => $role['shortname'],
+            };
+        })->toArray();
+
+        return [
+            'id' => $user['id'] ?? null,
+            'username' => $user['username'] ?? '',
+            'firstname' => $user['firstname'] ?? '',
+            'lastname' => $user['lastname'] ?? '',
+            'fullname' => $user['fullname'] ?? '',
+            'email' => $user['email'] ?? '',
+            'department' => $user['department'] ?? '',
+            'firstaccess' => $user['firstaccess'] ?? 0,
+            'lastaccess' => $user['lastaccess'] ?? 0,
+            'lastcourseaccess' => $user['lastcourseaccess'] ?? 0,
+            'description' => $user['description'] ?? '',
+            'country' => $user['country'] ?? '',
+            'profileimageurl' => $user['profileimageurl'] ?? '',
+            'profileimageurlsmall' => $user['profileimageurlsmall'] ?? '',
+            'roles' => $roles,
+            'role_names' => $roleNames,
+            'is_teacher' => in_array('editingteacher', $roles) || in_array('teacher', $roles),
+            'is_student' => in_array('student', $roles),
+            // Custom fields
+            'nip' => $customFields['nip'] ?? '',
+            'nama_lengkap' => $customFields['nama_lengkap'] ?? $user['fullname'] ?? '',
+            'tempat_lahir' => $customFields['tempat_lahir'] ?? '',
+            'tanggal_lahir' => isset($customFields['tanggal_lahir']) && $customFields['tanggal_lahir'] 
+                ? date('Y-m-d', (int)$customFields['tanggal_lahir']) 
+                : null,
+            'pangkat_golongan' => $customFields['pangkatgol'] ?? '',
+            'unit_kerja' => $customFields['unit_kerja'] ?? '',
+            'provinsi' => $customFields['prov'] ?? '',
+            'spesialisasi' => $customFields['spesialisasi'] ?? '',
+            'no_hp' => $customFields['no_hp'] ?? '',
+            'pendidikan' => $customFields['pendidikan'] ?? '',
+            'jurusan_pendidikan' => $customFields['jurusan_pendidikan'] ?? '',
+            'agama' => $customFields['agama'] ?? '',
+            'jenis_kelamin' => $customFields['jenis_kelamin'] ?? '',
+            'status_kawin' => $customFields['status_kawin'] ?? '',
+            // Formatted dates
+            'last_access_formatted' => $user['lastaccess'] ? date('d M Y H:i', $user['lastaccess']) : '-',
+            'last_course_access_formatted' => $user['lastcourseaccess'] ? date('d M Y H:i', $user['lastcourseaccess']) : '-',
+        ];
     }
     
     /**

@@ -228,6 +228,7 @@ class PelatihanJarakJauhResource extends Resource
         return [
             'index' => Pages\ListPelatihanJarakJauhs::route('/'),
             'create' => Pages\CreatePelatihanJarakJauh::route('/create'),
+            'view' => Pages\ViewPelatihanJarakJauh::route('/{record}'),
             'edit' => Pages\EditPelatihanJarakJauh::route('/{record}/edit'),
         ];
     }
